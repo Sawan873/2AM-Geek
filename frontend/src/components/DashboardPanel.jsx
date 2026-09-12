@@ -9,12 +9,17 @@ export default function DashboardPanel() {
     recent_topics: []
   })
   const [loading, setLoading] = useState(true)
+  const [readiness, setReadiness] = useState(null)
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get('/api/stats')
-        setStats(res.data)
+        const [statsResponse, readinessResponse] = await Promise.all([
+          axios.get('/api/stats'),
+          axios.get('/api/readiness'),
+        ])
+        setStats(statsResponse.data)
+        setReadiness(readinessResponse.data)
       } catch (e) {
         console.error('Failed to fetch stats', e)
       } finally {
@@ -51,6 +56,36 @@ export default function DashboardPanel() {
           <p className="text-xl font-bold text-accent-green">{stats.total_questions_asked}</p>
         </div>
       </div>
+
+      {readiness && (
+        <div className="mt-1">
+          <div className="flex items-end justify-between mb-2">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-300">Submission Readiness</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {readiness.ingested_pages} source pages · {readiness.formats.length} formats
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {readiness.checks.map((check, index) => (
+              <div key={index} className={`rounded-lg border px-3 py-2 text-xs ${
+                check.passed
+                  ? 'border-accent-green/30 bg-accent-green/10 text-slate-200'
+                  : 'border-dark-border bg-dark-card text-slate-400'
+              }`}>
+                <div className="flex gap-2 items-start">
+                  <span>{check.passed ? '✓' : '○'}</span>
+                  <div>
+                    <p className="font-medium text-slate-300">{check.label}</p>
+                    <p className="mt-0.5 text-slate-500">{check.detail}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4">
         <h3 className="text-sm font-semibold text-slate-300 mb-3">Recent Topics</h3>

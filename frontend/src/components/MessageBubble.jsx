@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import CitationChip from './CitationChip'
 
-export default function MessageBubble({ message, onCitationClick, debugMode }) {
+export default function MessageBubble({ message, onCitationClick, debugMode, onSaveRevision }) {
   const [debugExpanded, setDebugExpanded] = useState(false)
   const isUser = message.role === 'user'
   
@@ -111,6 +111,16 @@ export default function MessageBubble({ message, onCitationClick, debugMode }) {
               />
             ))}
           </div>
+        )}
+
+        {!isUser && !isRefusal && message.citations?.length > 0 && (
+          <button
+            onClick={() => onSaveRevision?.(message)}
+            className="text-xs text-slate-500 hover:text-accent-blue transition-colors px-1"
+            title="Save this cited answer for later revision"
+          >
+            ⊕ Save to revision board
+          </button>
         )}
 
         {/* Debug Panel */}

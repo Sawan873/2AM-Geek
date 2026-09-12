@@ -69,3 +69,11 @@ class StatsResponse(BaseModel):
     total_chunks: int
     total_questions_asked: int
     recent_topics: List[str]
+
+
+class CorpusReadinessResponse(BaseModel):
+    total_documents: int
+    ingested_pages: int
+    formats: List[str]
+    image_sources: int
+    checks: List[Dict[str, Any]]

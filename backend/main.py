@@ -19,8 +19,8 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from models import ChatRequest, ChatResponse, UploadResponse, DocumentsResponse, DocumentInfo, QuizRequest, QuizResponse, QuizQuestion, QuizOption, Citation, StatsResponse
-from ingestion import ingest_pdf, ingest_image, ingest_text, delete_document, list_documents, get_document_chunks, get_collection
+from models import ChatRequest, ChatResponse, UploadResponse, DocumentsResponse, DocumentInfo, QuizRequest, QuizResponse, QuizQuestion, QuizOption, Citation, StatsResponse, CorpusReadinessResponse
+from ingestion import ingest_pdf, ingest_image, ingest_text, delete_document, list_documents, get_document_chunks, get_collection, get_corpus_readiness
 from retrieval import query_and_generate, get_stats, _call_gemini, invalidate_retrieval_cache
 
 # ---------------------------------------------------------------------------
@@ -179,6 +179,15 @@ async def stats():
             total_questions_asked=rag_stats["total_questions_asked"],
             recent_topics=rag_stats["recent_topics"],
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/readiness", response_model=CorpusReadinessResponse)
+async def corpus_readiness():
+    """Expose submission-requirement progress without fabricating manual checks."""
+    try:
+        return CorpusReadinessResponse(**get_corpus_readiness())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -4,6 +4,7 @@ import ChatPanel from './components/ChatPanel'
 import DashboardPanel from './components/DashboardPanel'
 import EvidenceViewer from './components/EvidenceViewer'
 import ExamMode from './components/ExamMode'
+import RevisionBoard from './components/RevisionBoard'
 
 export default function App() {
   const [documents, setDocuments] = useState([])
@@ -11,6 +12,29 @@ export default function App() {
   const [debugMode, setDebugMode] = useState(false)
   const [sidebarTab, setSidebarTab] = useState('materials')
   const [examDoc, setExamDoc] = useState(null)
+  const [revisionCards, setRevisionCards] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('2am-geek-revision-cards') || '[]')
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem('2am-geek-revision-cards', JSON.stringify(revisionCards))
+  }, [revisionCards])
+
+  const saveRevisionCard = (message) => {
+    setRevisionCards(previous => {
+      if (previous.some(card => card.content === message.content)) return previous
+      return [{
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        content: message.content,
+        citations: message.citations || [],
+        savedAt: new Date().toISOString(),
+      }, ...previous].slice(0, 20)
+    })
+  }
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -69,12 +93,28 @@ export default function App() {
             >
               Dashboard
             </button>
+            <button
+              onClick={() => setSidebarTab('revision')}
+              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                sidebarTab === 'revision'
+                  ? 'bg-dark-card text-slate-200 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              Revision
+            </button>
           </div>
           <div className="flex-1 overflow-hidden">
             {sidebarTab === 'materials' ? (
               <UploadPanel documents={documents} setDocuments={setDocuments} onStartQuiz={setExamDoc} />
-            ) : (
+            ) : sidebarTab === 'dashboard' ? (
               <DashboardPanel />
+            ) : (
+              <RevisionBoard
+                cards={revisionCards}
+                onRemove={(id) => setRevisionCards(previous => previous.filter(card => card.id !== id))}
+                onCitationClick={setSelectedCitation}
+              />
             )}
           </div>
         </div>
@@ -85,6 +125,7 @@ export default function App() {
             hasDocuments={documents.length > 0} 
             onCitationClick={setSelectedCitation}
             debugMode={debugMode}
+            onSaveRevision={saveRevisionCard}
           />
         </div>
 

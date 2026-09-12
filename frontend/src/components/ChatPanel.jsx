@@ -14,7 +14,7 @@ const WELCOME_MESSAGE = {
   timestamp: new Date().toISOString(),
 }
 
-export default function ChatPanel({ hasDocuments, onCitationClick, debugMode }) {
+export default function ChatPanel({ hasDocuments, onCitationClick, debugMode, onSaveRevision }) {
   const [messages, setMessages] = useState([WELCOME_MESSAGE])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -161,6 +161,7 @@ export default function ChatPanel({ hasDocuments, onCitationClick, debugMode }) 
             message={msg} 
             onCitationClick={onCitationClick}
             debugMode={debugMode}
+            onSaveRevision={onSaveRevision}
           />
         ))}
 

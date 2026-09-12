@@ -272,6 +272,72 @@ def list_documents() -> List[Dict[str, Any]]:
 
     return [{"filename": fname, "chunks": count} for fname, count in counts.items()]
 
+
+def get_corpus_readiness() -> Dict[str, Any]:
+    """Summarise objective corpus requirements without claiming manual evidence.
+
+    Page counts are conservative: a page counts only when at least one chunk was
+    successfully ingested. Handwriting quality and permission cannot be proven
+    automatically, so they remain explicitly manual checks in the response.
+    """
+    collection = get_collection()
+    results = collection.get(include=["metadatas"])
+    documents: Dict[str, Dict[str, Any]] = {}
+    for metadata in results.get("metadatas", []):
+        filename = metadata.get("source_filename", "unknown")
+        entry = documents.setdefault(
+            filename,
+            {
+                "pages": set(),
+                "extension": Path(filename).suffix.lower() or "unknown",
+                "source_type": metadata.get("source_type", "unknown"),
+            },
+        )
+        entry["pages"].add(metadata.get("page_number", 0))
+
+    total_pages = sum(len(entry["pages"]) for entry in documents.values())
+    formats = sorted({entry["extension"] for entry in documents.values()})
+    image_sources = sum(1 for entry in documents.values() if entry["source_type"] == "image")
+    checks = [
+        {
+            "label": "60+ successfully ingested source pages",
+            "passed": total_pages >= 60,
+            "detail": f"{total_pages}/60 pages",
+        },
+        {
+            "label": "Four or more uploaded file formats",
+            "passed": len(formats) >= 4,
+            "detail": f"{len(formats)}/4 formats ({', '.join(formats) or 'none'})",
+        },
+        {
+            "label": "Two photographed handwritten-note sources",
+            "passed": image_sources >= 2,
+            "detail": f"{image_sources}/2 image sources — manually confirm they are permitted handwriting photos.",
+        },
+        {
+            "label": "Diagram, table, or equation source included",
+            "passed": False,
+            "detail": "Manual review required; visual content cannot be verified from chunk metadata.",
+        },
+        {
+            "label": "Difficult handwritten scan included",
+            "passed": False,
+            "detail": "Manual review required; keep one genuinely hard-to-read photo in the public corpus.",
+        },
+        {
+            "label": "30 hand-labelled evaluation questions",
+            "passed": False,
+            "detail": "Manual review required; add evaluation/questions.json and record source pages by hand.",
+        },
+    ]
+    return {
+        "total_documents": len(documents),
+        "ingested_pages": total_pages,
+        "formats": formats,
+        "image_sources": image_sources,
+        "checks": checks,
+    }
+
 def get_document_chunks(filename: str) -> List[Dict[str, Any]]:
     """Return all chunks and metadata for a specific document."""
     collection = get_collection()

@@ -26,6 +26,8 @@ refuses questions that the material does not support.
   UI shows which documents were searched.
 - **Exam mode.** Generate cited multiple-choice questions from a selected
   source without bringing in outside knowledge.
+- **Revision board.** Save cited answers locally in the browser and revisit
+  the most important concepts without running the same searches again.
 - **Judge mode.** Press `Ctrl+Shift+D` to inspect query expansion, retrieved
   chunks, scores, and the evidence decision.
 
@@ -127,6 +129,11 @@ The evaluator verifies all expected citation pairs and all refusals, then
 writes a reviewable JSON report in `evaluation/results/`. A person must still
 mark whether each answer is academically correct before publishing the final
 score. Full instructions: [evaluation/README.md](evaluation/README.md).
+
+The Dashboard includes a **Submission Readiness** checklist. It counts only
+successfully ingested pages and file formats; handwriting provenance, difficult
+scan quality, visual-content coverage, and the hand-labelled evaluation remain
+manual checks so the app never falsely certifies a submission.
 
 ## Demo checklist
 
