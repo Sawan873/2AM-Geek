@@ -130,12 +130,17 @@ export default function MessageBubble({ message, onCitationClick, debugMode }) {
                 </div>
                 
                 <div>
-                  <div className="text-slate-500 mb-1">Expanded Queries:</div>
+                  <div className="text-slate-500 mb-1">Fast local search queries:</div>
                   <ul className="list-disc list-inside pl-2 space-y-1">
                     {debug_info.expanded_queries?.map((q, i) => (
                       <li key={i} className="text-slate-400">{q}</li>
                     ))}
                   </ul>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-[10px] text-slate-500">
+                  <span>Latency: {debug_info.latency_ms ?? '…'} ms</span>
+                  <span>{debug_info.cache_hit ? 'Cache hit' : 'Fresh answer'}</span>
                 </div>
 
                 <div>

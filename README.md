@@ -42,6 +42,12 @@ refuses questions that the material does not support.
    refuses. Returned citations are accepted only when they match retrieved
    filename/page metadata.
 
+The normal question path uses **one Gemini request**, not one request to
+rewrite the search query followed by another to answer it. Search variants and
+the BM25 index are built locally; exact repeated questions in the same corpus
+are served from a small in-memory cache. Uploading or deleting a document
+invalidates that cache, so an answer never outlives the corpus it was based on.
+
 ## Run locally
 
 ### Prerequisites

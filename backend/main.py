@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 
 from models import ChatRequest, ChatResponse, UploadResponse, DocumentsResponse, DocumentInfo, QuizRequest, QuizResponse, QuizQuestion, QuizOption, Citation, StatsResponse
 from ingestion import ingest_pdf, ingest_image, ingest_text, delete_document, list_documents, get_document_chunks, get_collection
-from retrieval import query_and_generate, get_stats, _call_gemini
+from retrieval import query_and_generate, get_stats, _call_gemini, invalidate_retrieval_cache
 
 # ---------------------------------------------------------------------------
 # Startup
@@ -86,7 +86,10 @@ async def health():
 @app.post("/api/upload", response_model=UploadResponse)
 async def upload_file(file: UploadFile = File(...)):
     """Accept a file, save it temporarily, run the ingestion pipeline, then delete the temp file."""
-    suffix = Path(file.filename).suffix.lower()
+    filename = Path(file.filename or "").name
+    if not filename:
+        raise HTTPException(status_code=400, detail="A filename is required.")
+    suffix = Path(filename).suffix.lower()
     if suffix not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
@@ -94,7 +97,7 @@ async def upload_file(file: UploadFile = File(...)):
         )
 
     file_type = ALLOWED_EXTENSIONS[suffix]
-    tmp_path = UPLOAD_DIR / file.filename
+    tmp_path = UPLOAD_DIR / filename
 
     # Save upload to disk
     try:
@@ -105,13 +108,13 @@ async def upload_file(file: UploadFile = File(...)):
 
     # Run ingestion
     try:
-        logger.info(f"Starting ingestion for: {file.filename} (type={file_type})")
+        logger.info(f"Starting ingestion for: {filename} (type={file_type})")
         if file_type == "pdf":
-            chunks_stored = ingest_pdf(str(tmp_path), file.filename)
+            chunks_stored = ingest_pdf(str(tmp_path), filename)
         elif file_type == "image":
-            chunks_stored = ingest_image(str(tmp_path), file.filename)
+            chunks_stored = ingest_image(str(tmp_path), filename)
         else:
-            chunks_stored = ingest_text(str(tmp_path), file.filename)
+            chunks_stored = ingest_text(str(tmp_path), filename)
     except Exception as e:
         logger.error(f"Ingestion failed for {file.filename}: {e}")
         raise HTTPException(status_code=500, detail=f"Ingestion failed: {e}")
@@ -120,7 +123,8 @@ async def upload_file(file: UploadFile = File(...)):
         if tmp_path.exists():
             tmp_path.unlink()
 
-    return UploadResponse(filename=file.filename, chunks_stored=chunks_stored)
+    invalidate_retrieval_cache()
+    return UploadResponse(filename=filename, chunks_stored=chunks_stored)
 
 
 @app.get("/api/documents", response_model=DocumentsResponse)
@@ -140,6 +144,7 @@ async def remove_document(filename: str):
     """Remove all chunks for the given filename from ChromaDB."""
     try:
         deleted = delete_document(filename)
+        invalidate_retrieval_cache()
         return {"filename": filename, "chunks_deleted": deleted}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

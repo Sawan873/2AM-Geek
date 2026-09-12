@@ -1,14 +1,11 @@
-"""
-retrieval.py — Multi-turn RAG query and generation pipeline (v2).
+"""Fast, grounded multi-turn RAG retrieval and answer generation.
 
-Pipeline (2 LLM calls):
-  1. Query Expansion — generate search variations.
-  2. Hybrid Search — Vector (ChromaDB) + Keyword (BM25), merged & deduped.
-  3. Score-Based Reranking — no LLM call, sort by combined score.
-  4. Combined Evidence Check + Generation — single LLM call that both
-     evaluates evidence sufficiency AND generates a grounded answer.
+Each uncached question makes one model request: the combined evidence decision
+and answer-generation request. Query variants and BM25 indexing are local, so
+they add negligible latency while preserving the citation guardrail.
 """
 
+import hashlib
 import json
 import logging
 import re
@@ -28,12 +25,15 @@ VECTOR_TOP_K = 15
 BM25_TOP_K = 10
 FINAL_TOP_K = 8
 MAX_RETRIES = 3
+ANSWER_CACHE_MAX_ENTRIES = 50
 
 REFUSAL_PHRASE = "I cannot answer this based on the provided materials."
 
 # In-memory stats counter
 _questions_asked = 0
 _recent_topics: list = []
+_answer_cache: Dict[str, ChatResponse] = {}
+_bm25_index: Optional[Tuple[BM25Okapi, List[str], List[str], List[Dict[str, Any]]]] = None
 
 
 def get_stats() -> dict:
@@ -41,6 +41,14 @@ def get_stats() -> dict:
         "total_questions_asked": _questions_asked,
         "recent_topics": _recent_topics[-10:],
     }
+
+
+def invalidate_retrieval_cache() -> None:
+    """Clear per-corpus caches after any upload or document deletion."""
+    global _bm25_index
+    _answer_cache.clear()
+    _bm25_index = None
+    logger.info("Retrieval caches invalidated after corpus change.")
 
 
 # ---------------------------------------------------------------------------
@@ -88,51 +96,58 @@ def _build_history_string(history: List[ConversationTurn]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Step 1: Query Expansion (1 LLM call)
+# Step 1: Fast local query variants (no LLM call)
 # ---------------------------------------------------------------------------
-def _expand_query(question: str, history: List[ConversationTurn]) -> List[str]:
-    history_str = _build_history_string(history)
-    prompt = (
-        "You are an expert search query generator. Given the user's question and conversation history, "
-        "generate exactly 3 distinct search queries to maximize retrieval from a study materials knowledge base.\n"
-        "- Query 1: The core intent rewritten as a clear, direct search query.\n"
-        "- Query 2: Key technical terms and specific keywords extracted from the question.\n"
-        "- Query 3: Alternative phrasings using synonyms or related terminology.\n\n"
-    )
-    if history_str:
-        prompt += f"{history_str}\n\n"
-    prompt += (
-        f"Latest Question: {question}\n\n"
-        "Output ONLY a valid JSON array of 3 strings. No markdown fences, no explanation.\n"
-        'Example: ["what is classmethod decorator in Python", "classmethod @classmethod decorator", "method bound to class not instance"]'
-    )
+_QUERY_STOP_WORDS = {
+    "about", "been", "could", "describe", "does", "explain", "from", "have",
+    "that", "their", "this", "they", "what", "which", "with", "would",
+    "your", "please", "according", "notes", "material", "materials",
+}
 
-    text = _call_gemini(prompt)
-    if text:
-        try:
-            # Strip markdown fences if present
-            cleaned = text.strip()
-            if cleaned.startswith("```"): cleaned = cleaned.split("\n", 1)[-1]
-            if cleaned.endswith("```"): cleaned = cleaned.rsplit("```", 1)[0]
-            cleaned = cleaned.strip()
-            queries = json.loads(cleaned)
-            if isinstance(queries, list) and all(isinstance(q, str) for q in queries):
-                return queries[:3]
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse query expansion JSON: {e}")
 
-    # Fallback: generate queries locally without LLM
-    fallback = [question]
-    words = question.lower().replace("?", "").replace(".", "").split()
-    keywords = [w for w in words if len(w) > 3 and w not in {"what", "does", "that", "this", "from", "with", "about", "have", "been", "they", "their", "which", "would", "could", "should", "explain", "describe"}]
-    if keywords:
-        fallback.append(" ".join(keywords))
-    return fallback
+def _keywords(text: str, limit: int = 12) -> List[str]:
+    words = re.findall(r"[A-Za-z0-9_@+-]{3,}", text.lower())
+    return [word for word in words if word not in _QUERY_STOP_WORDS][:limit]
+
+
+def _build_search_queries(question: str, history: List[ConversationTurn]) -> List[str]:
+    """Create recall-friendly variants locally, avoiding a second API round trip."""
+    queries = [question.strip()]
+    current_keywords = _keywords(question)
+    if current_keywords:
+        queries.append(" ".join(current_keywords))
+
+    # Add the previous student topic only for follow-up questions. This keeps
+    # conversational context without asking a model to rewrite the query.
+    prior_user_turns = [turn.content for turn in history if turn.role == "user"]
+    if prior_user_turns and current_keywords:
+        prior_keywords = _keywords(prior_user_turns[-1], limit=6)
+        if prior_keywords:
+            queries.append(" ".join(current_keywords + prior_keywords))
+
+    return list(dict.fromkeys(query for query in queries if query))
 
 
 # ---------------------------------------------------------------------------
 # Step 2: Hybrid Search (no LLM call)
 # ---------------------------------------------------------------------------
+def _get_bm25_index(collection) -> Tuple[Optional[BM25Okapi], List[str], List[str], List[Dict[str, Any]]]:
+    """Build BM25 once per corpus rather than once per student question."""
+    global _bm25_index
+    if _bm25_index is not None:
+        return _bm25_index
+
+    all_data = collection.get(include=["documents", "metadatas"])
+    all_ids = all_data.get("ids", [])
+    all_docs = all_data.get("documents", [])
+    all_metas = all_data.get("metadatas", [])
+    if not all_docs:
+        return None, [], [], []
+    bm25 = BM25Okapi([doc.lower().split() for doc in all_docs])
+    _bm25_index = (bm25, all_ids, all_docs, all_metas)
+    return _bm25_index
+
+
 def _hybrid_search(queries: List[str]) -> List[Tuple[str, Dict[str, Any], float]]:
     """Perform Vector + BM25 search, return merged candidates with scores."""
     collection = get_collection()
@@ -169,15 +184,9 @@ def _hybrid_search(queries: List[str]) -> List[Tuple[str, Dict[str, Any], float]
     bm25_data: Dict[str, Tuple[str, Dict[str, Any]]] = {}
 
     try:
-        all_data = collection.get(include=["documents", "metadatas"])
-        all_ids = all_data.get("ids", [])
-        all_docs = all_data.get("documents", [])
-        all_metas = all_data.get("metadatas", [])
+        bm25, all_ids, all_docs, all_metas = _get_bm25_index(collection)
 
-        if all_docs:
-            tokenized_corpus = [doc.lower().split() for doc in all_docs]
-            bm25 = BM25Okapi(tokenized_corpus)
-
+        if bm25 is not None:
             for q in queries:
                 tokenized_query = q.lower().split()
                 scores = bm25.get_scores(tokenized_query)
@@ -207,6 +216,20 @@ def _hybrid_search(queries: List[str]) -> List[Tuple[str, Dict[str, Any], float]
     # Sort by combined score descending
     candidates.sort(key=lambda x: x[2], reverse=True)
     return candidates[:FINAL_TOP_K]
+
+
+def _answer_cache_key(question: str, history: List[ConversationTurn]) -> str:
+    payload = {
+        "question": question.strip(),
+        "history": [(turn.role, turn.content) for turn in history[-6:]],
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _cache_response(cache_key: str, response: ChatResponse) -> None:
+    if len(_answer_cache) >= ANSWER_CACHE_MAX_ENTRIES:
+        _answer_cache.pop(next(iter(_answer_cache)))
+    _answer_cache[cache_key] = response
 
 
 # ---------------------------------------------------------------------------
@@ -333,12 +356,32 @@ def query_and_generate(
     if len(_recent_topics) > 20:
         _recent_topics = _recent_topics[-20:]
 
-    debug_info: Dict[str, Any] = {"question": question}
+    started_at = time.perf_counter()
+    cache_key = _answer_cache_key(question, history)
+    cached_response = _answer_cache.get(cache_key)
+    if cached_response is not None:
+        cached_debug = dict(cached_response.debug_info or {})
+        cached_debug.update({
+            "question": question,
+            "cache_hit": True,
+            "latency_ms": round((time.perf_counter() - started_at) * 1000, 1),
+        })
+        return ChatResponse(
+            answer=cached_response.answer,
+            citations=cached_response.citations,
+            debug_info=cached_debug,
+        )
 
-    # ── 1. Query Expansion ──
-    queries = _expand_query(question, history)
+    debug_info: Dict[str, Any] = {
+        "question": question,
+        "cache_hit": False,
+        "retrieval_strategy": "local query variants + vector/BM25 hybrid search",
+    }
+
+    # ── 1. Local query variants ──
+    queries = _build_search_queries(question, history)
     debug_info["expanded_queries"] = queries
-    logger.info(f"[Pipeline] Expanded Queries: {queries}")
+    logger.info(f"[Pipeline] Local search queries: {queries}")
 
     # ── 2. Hybrid Search ──
     candidates = _hybrid_search(queries)
@@ -351,8 +394,11 @@ def query_and_generate(
 
     if not candidates:
         debug_info["evidence_decision"] = "NO_CANDIDATES"
+        debug_info["latency_ms"] = round((time.perf_counter() - started_at) * 1000, 1)
         logger.info("[Pipeline] No candidates found → refusing")
-        return ChatResponse(answer=REFUSAL_PHRASE, citations=[], debug_info=debug_info)
+        response = ChatResponse(answer=REFUSAL_PHRASE, citations=[], debug_info=debug_info)
+        _cache_response(cache_key, response)
+        return response
 
     # ── 3. Evaluate & Generate (single LLM call) ──
     decision, answer, citations = _evaluate_and_generate(question, history, candidates)
@@ -366,4 +412,7 @@ def query_and_generate(
         searched_docs = list(set(c[1].get("source_filename", "unknown") for c in candidates))
         debug_info["searched_documents"] = searched_docs
 
-    return ChatResponse(answer=answer, citations=citations, debug_info=debug_info)
+    debug_info["latency_ms"] = round((time.perf_counter() - started_at) * 1000, 1)
+    response = ChatResponse(answer=answer, citations=citations, debug_info=debug_info)
+    _cache_response(cache_key, response)
+    return response
