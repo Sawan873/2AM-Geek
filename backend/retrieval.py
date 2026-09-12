@@ -21,7 +21,7 @@ from ingestion import get_collection, get_genai_client
 
 logger = logging.getLogger(__name__)
 
-GENERATION_MODEL_NAME = "gemini-3.6-flash"
+GENERATION_MODEL_NAME = "gemini-2.0-flash"
 VECTOR_TOP_K = 15
 BM25_TOP_K = 10
 FINAL_TOP_K = 6

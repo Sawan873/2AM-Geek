@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Gemini Vision model for OCR
 # ---------------------------------------------------------------------------
-VISION_MODEL_NAME = "gemini-3.6-flash"
+VISION_MODEL_NAME = "gemini-2.0-flash"
 CHUNK_SIZE = 800          # characters per chunk
 CHUNK_OVERLAP = 120       # character overlap between chunks
 
