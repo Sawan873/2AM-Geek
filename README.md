@@ -4,6 +4,7 @@
 
 
 [▶️ Watch Live Demo and Explanation](https://drive.google.com/drive/u/0/folders/1PjkxHPIalmFU48Fdl1Vv_N9j9Wkw0RmE)
+[▶️ Watch Project Explanation on YouTube](https://www.youtube.com/watch?v=uJgzX71z7ko)
 
 > You have fourteen hours until the exam. Ask your actual course material, get
 > an evidence-grounded answer, and open the exact page to verify it.
