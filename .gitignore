@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables — NEVER commit your API key
+.env
+.env.*
+!.env.example
+
+# ChromaDB vector store — rebuild by re-uploading docs
+backend/chroma_db/
+
+# Uploaded temp files
+backend/uploads/
+backend/stored_images/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Logs
+*.log
+
+# Test artifacts
+*.pyc
+.pytest_cache/
+
+# Local submission artifacts (not part of the application)
+interview_prep.html
+interview_prep.pdf
+test_questions.json
+test_specific.json
+evaluation/results/*
+!evaluation/results/.gitkeep

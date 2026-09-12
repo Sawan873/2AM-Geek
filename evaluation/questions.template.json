@@ -1,0 +1,212 @@
+[
+  {
+    "id": "A01",
+    "question": "REPLACE: a question answerable from one document",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE.pdf", "page_number": 1}],
+    "notes": "Single-document question; source page recorded by hand."
+  },
+  {
+    "id": "A02",
+    "question": "REPLACE: a question answerable from one document",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE.pdf", "page_number": 1}],
+    "notes": "Single-document question; source page recorded by hand."
+  },
+  {
+    "id": "A03",
+    "question": "REPLACE: a question answerable from one document",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE.pdf", "page_number": 1}],
+    "notes": "Single-document question; source page recorded by hand."
+  },
+  {
+    "id": "A04",
+    "question": "REPLACE: a question answerable from one document",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE.pdf", "page_number": 1}],
+    "notes": "Single-document question; source page recorded by hand."
+  },
+  {
+    "id": "A05",
+    "question": "REPLACE: a question answerable from one document",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE.pdf", "page_number": 1}],
+    "notes": "Single-document question; source page recorded by hand."
+  },
+  {
+    "id": "A06",
+    "question": "REPLACE: a question answerable from one document",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE.pdf", "page_number": 1}],
+    "notes": "Single-document question; source page recorded by hand."
+  },
+  {
+    "id": "A07",
+    "question": "REPLACE: a question answerable from one document",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE.pdf", "page_number": 1}],
+    "notes": "Single-document question; source page recorded by hand."
+  },
+  {
+    "id": "A08",
+    "question": "REPLACE: a question answerable from one document",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE.pdf", "page_number": 1}],
+    "notes": "Single-document question; source page recorded by hand."
+  },
+  {
+    "id": "A09",
+    "question": "REPLACE: a question answerable from one document",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE.pdf", "page_number": 1}],
+    "notes": "Single-document question; source page recorded by hand."
+  },
+  {
+    "id": "A10",
+    "question": "REPLACE: a question answerable from one document",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE.pdf", "page_number": 1}],
+    "notes": "Single-document question; source page recorded by hand."
+  },
+  {
+    "id": "A11",
+    "question": "REPLACE: a question requiring two documents",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE_1.pdf", "page_number": 1}, {"filename": "REPLACE_2.pdf", "page_number": 1}],
+    "notes": "Multi-document synthesis."
+  },
+  {
+    "id": "A12",
+    "question": "REPLACE: a question requiring two documents",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE_1.pdf", "page_number": 1}, {"filename": "REPLACE_2.pdf", "page_number": 1}],
+    "notes": "Multi-document synthesis."
+  },
+  {
+    "id": "A13",
+    "question": "REPLACE: a question requiring two documents",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE_1.pdf", "page_number": 1}, {"filename": "REPLACE_2.pdf", "page_number": 1}],
+    "notes": "Multi-document synthesis."
+  },
+  {
+    "id": "A14",
+    "question": "REPLACE: a question requiring two documents",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE_1.pdf", "page_number": 1}, {"filename": "REPLACE_2.pdf", "page_number": 1}],
+    "notes": "Multi-document synthesis."
+  },
+  {
+    "id": "A15",
+    "question": "REPLACE: a question requiring two documents",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE_1.pdf", "page_number": 1}, {"filename": "REPLACE_2.pdf", "page_number": 1}],
+    "notes": "Multi-document synthesis."
+  },
+  {
+    "id": "A16",
+    "question": "REPLACE: a question requiring two documents",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE_1.pdf", "page_number": 1}, {"filename": "REPLACE_2.pdf", "page_number": 1}],
+    "notes": "Multi-document synthesis."
+  },
+  {
+    "id": "A17",
+    "question": "REPLACE: a question requiring two documents",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE_1.pdf", "page_number": 1}, {"filename": "REPLACE_2.pdf", "page_number": 1}],
+    "notes": "Multi-document synthesis."
+  },
+  {
+    "id": "A18",
+    "question": "REPLACE: a question requiring two documents",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE_1.pdf", "page_number": 1}, {"filename": "REPLACE_2.pdf", "page_number": 1}],
+    "notes": "Multi-document synthesis."
+  },
+  {
+    "id": "A19",
+    "question": "REPLACE: a question requiring two documents",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE_1.pdf", "page_number": 1}, {"filename": "REPLACE_2.pdf", "page_number": 1}],
+    "notes": "Multi-document synthesis."
+  },
+  {
+    "id": "A20",
+    "question": "REPLACE: a question requiring two documents",
+    "expected_type": "answer",
+    "required_sources": [{"filename": "REPLACE_1.pdf", "page_number": 1}, {"filename": "REPLACE_2.pdf", "page_number": 1}],
+    "notes": "Multi-document synthesis."
+  },
+  {
+    "id": "R01",
+    "question": "REPLACE: a syllabus-relevant topic absent from every source",
+    "expected_type": "refusal",
+    "required_sources": [],
+    "notes": "Must be absent from the corpus."
+  },
+  {
+    "id": "R02",
+    "question": "REPLACE: a syllabus-relevant topic absent from every source",
+    "expected_type": "refusal",
+    "required_sources": [],
+    "notes": "Must be absent from the corpus."
+  },
+  {
+    "id": "R03",
+    "question": "REPLACE: a syllabus-relevant topic absent from every source",
+    "expected_type": "refusal",
+    "required_sources": [],
+    "notes": "Must be absent from the corpus."
+  },
+  {
+    "id": "R04",
+    "question": "REPLACE: a syllabus-relevant topic absent from every source",
+    "expected_type": "refusal",
+    "required_sources": [],
+    "notes": "Must be absent from the corpus."
+  },
+  {
+    "id": "R05",
+    "question": "REPLACE: a syllabus-relevant topic absent from every source",
+    "expected_type": "refusal",
+    "required_sources": [],
+    "notes": "Must be absent from the corpus."
+  },
+  {
+    "id": "R06",
+    "question": "REPLACE: a syllabus-relevant topic absent from every source",
+    "expected_type": "refusal",
+    "required_sources": [],
+    "notes": "Must be absent from the corpus."
+  },
+  {
+    "id": "R07",
+    "question": "REPLACE: a syllabus-relevant topic absent from every source",
+    "expected_type": "refusal",
+    "required_sources": [],
+    "notes": "Must be absent from the corpus."
+  },
+  {
+    "id": "R08",
+    "question": "REPLACE: a syllabus-relevant topic absent from every source",
+    "expected_type": "refusal",
+    "required_sources": [],
+    "notes": "Must be absent from the corpus."
+  },
+  {
+    "id": "R09",
+    "question": "REPLACE: a syllabus-relevant topic absent from every source",
+    "expected_type": "refusal",
+    "required_sources": [],
+    "notes": "Must be absent from the corpus."
+  },
+  {
+    "id": "R10",
+    "question": "REPLACE: a syllabus-relevant topic absent from every source",
+    "expected_type": "refusal",
+    "required_sources": [],
+    "notes": "Must be absent from the corpus."
+  }
+]
