@@ -13,6 +13,7 @@ import time
 from typing import List, Dict, Any, Tuple, Optional
 
 from google import genai
+from google.genai import types as genai_types
 from rank_bm25 import BM25Okapi
 
 from models import ChatResponse, Citation, ConversationTurn
@@ -23,8 +24,10 @@ logger = logging.getLogger(__name__)
 GENERATION_MODEL_NAME = "gemini-3.6-flash"
 VECTOR_TOP_K = 15
 BM25_TOP_K = 10
-FINAL_TOP_K = 8
-MAX_RETRIES = 3
+FINAL_TOP_K = 6
+MAX_RETRIES = 1
+GENERATION_TIMEOUT_MS = 15_000
+MAX_ANSWER_TOKENS = 450
 ANSWER_CACHE_MAX_ENTRIES = 50
 
 REFUSAL_PHRASE = "I cannot answer this based on the provided materials."
@@ -55,27 +58,26 @@ def invalidate_retrieval_cache() -> None:
 # Gemini call with retry/backoff
 # ---------------------------------------------------------------------------
 def _call_gemini(prompt: str, max_retries: int = MAX_RETRIES) -> Optional[str]:
-    """Call Gemini with automatic retry on 429 rate-limit errors."""
+    """Call Gemini with a short interactive timeout and one quick retry."""
     client = get_genai_client()
     for attempt in range(max_retries + 1):
         try:
             response = client.models.generate_content(
                 model=GENERATION_MODEL_NAME,
                 contents=prompt,
+                config=genai_types.GenerateContentConfig(
+                    temperature=0,
+                    max_output_tokens=MAX_ANSWER_TOKENS,
+                    http_options=genai_types.HttpOptions(timeout=GENERATION_TIMEOUT_MS),
+                ),
             )
             return response.text.strip() if response.text else None
         except Exception as e:
             error_str = str(e)
             if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                # Parse retry delay if available
-                wait_time = 15 * (attempt + 1)  # default escalating backoff
-                import re as _re
-                delay_match = _re.search(r'retryDelay.*?(\d+)s', error_str)
-                if delay_match:
-                    wait_time = int(delay_match.group(1)) + 1
                 if attempt < max_retries:
-                    logger.warning(f"Rate limited (attempt {attempt+1}/{max_retries+1}). Waiting {wait_time}s...")
-                    time.sleep(wait_time)
+                    logger.warning("Rate limited; retrying once in 2 seconds.")
+                    time.sleep(2)
                     continue
             logger.error(f"Gemini call failed: {e}")
             return None
@@ -232,6 +234,43 @@ def _cache_response(cache_key: str, response: ChatResponse) -> None:
     _answer_cache[cache_key] = response
 
 
+def _extractive_evidence_fallback(
+    candidates: List[Tuple[str, Dict[str, Any], float]],
+) -> Tuple[str, List[Citation]]:
+    """Return short, verbatim evidence when the model misses its response budget.
+
+    This is intentionally not presented as an AI-generated explanation. It lets
+    a student inspect the best matching material immediately without making up
+    an answer while a provider is slow or rate limited.
+    """
+    passages = []
+    citations = []
+    seen = set()
+    for document, metadata, _ in candidates:
+        filename = metadata.get("source_filename", "unknown")
+        page_number = metadata.get("page_number", 0)
+        source_type = metadata.get("source_type")
+        key = (filename, page_number)
+        if key in seen or not source_type:
+            continue
+        seen.add(key)
+        excerpt = re.sub(r"\s+", " ", document).strip()[:600]
+        if not excerpt:
+            continue
+        passages.append(f"> {excerpt}\n\n[{filename}, Page: {page_number}]")
+        citations.append(Citation(filename=filename, page_number=page_number, source_type=source_type))
+        if len(passages) == 2:
+            break
+
+    answer = (
+        "**Quick evidence view**\n\n"
+        "The cited-answer service did not respond within the 15-second study-time budget, "
+        "so I will not invent a summary. These are the most relevant passages to verify:\n\n"
+        + "\n\n".join(passages)
+    )
+    return answer, citations
+
+
 # ---------------------------------------------------------------------------
 # Step 3: Combined Evidence Check + Answer Generation (1 LLM call)
 # ---------------------------------------------------------------------------
@@ -282,6 +321,9 @@ def _evaluate_and_generate(
     text = _call_gemini(prompt)
 
     if not text:
+        fallback_answer, fallback_citations = _extractive_evidence_fallback(candidates)
+        if fallback_citations:
+            return "EXTRACTIVE_FALLBACK", fallback_answer, fallback_citations
         return "NOT_SUPPORTED", REFUSAL_PHRASE, []
 
     # Parse evidence decision
@@ -404,6 +446,7 @@ def query_and_generate(
     decision, answer, citations = _evaluate_and_generate(question, history, candidates)
     debug_info["evidence_decision"] = decision
     debug_info["citations_count"] = len(citations)
+    debug_info["fallback_used"] = decision == "EXTRACTIVE_FALLBACK"
     logger.info(f"[Pipeline] Evidence Decision: {decision} | Citations: {len(citations)}")
 
     if answer == REFUSAL_PHRASE:

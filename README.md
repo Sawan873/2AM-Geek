@@ -48,6 +48,11 @@ the BM25 index are built locally; exact repeated questions in the same corpus
 are served from a small in-memory cache. Uploading or deleting a document
 invalidates that cache, so an answer never outlives the corpus it was based on.
 
+For an interactive study session, generation has a 15-second response budget
+and one short rate-limit retry. If the provider cannot return a grounded answer
+in time, 2AM Geek immediately shows labelled **verbatim evidence excerpts**
+with citations. It never disguises those excerpts as a generated answer.
+
 ## Run locally
 
 ### Prerequisites

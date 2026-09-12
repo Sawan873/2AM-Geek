@@ -63,8 +63,14 @@ export default function MessageBubble({ message, onCitationClick, debugMode }) {
               </div>
             </div>
           ) : (
-            <ReactMarkdown
-              components={{
+            <>
+              {message.debug_info?.fallback_used && (
+                <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                  Model response timed out — showing source excerpts only, not an invented answer.
+                </div>
+              )}
+              <ReactMarkdown
+                components={{
                 p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                 strong: ({ children }) => <strong className="font-semibold text-slate-100">{children}</strong>,
                 em: ({ children }) => <em className="text-slate-300">{children}</em>,
@@ -84,9 +90,10 @@ export default function MessageBubble({ message, onCitationClick, debugMode }) {
                 ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>,
                 li: ({ children }) => <li className="text-slate-300">{children}</li>,
               }}
-            >
-              {message.content}
-            </ReactMarkdown>
+              >
+                {message.content}
+              </ReactMarkdown>
+            </>
           )}
         </div>
 
