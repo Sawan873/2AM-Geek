@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: 2am-geek
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false

@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+!.env.example
+frontend/node_modules
+frontend/dist
+backend/chroma_db
+backend/uploads
+backend/stored_images
+__pycache__
+backend/__pycache__
+interview_prep.html
+interview_prep.pdf
+evaluation/results

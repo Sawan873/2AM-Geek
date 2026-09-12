@@ -17,6 +17,7 @@ import json
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 from models import ChatRequest, ChatResponse, UploadResponse, DocumentsResponse, DocumentInfo, QuizRequest, QuizResponse, QuizQuestion, QuizOption, Citation, StatsResponse, CorpusReadinessResponse
@@ -48,6 +49,7 @@ CHROMA_DB_DIR.mkdir(parents=True, exist_ok=True)
 
 STORED_IMAGES_DIR = Path(__file__).parent / "stored_images"
 STORED_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+FRONTEND_DIST_DIR = Path(__file__).parent / "static"
 
 # ---------------------------------------------------------------------------
 # App
@@ -260,3 +262,10 @@ async def generate_quiz(request: QuizRequest):
         ))
 
     return QuizResponse(filename=request.filename, questions=questions)
+
+
+# In production the Docker image copies the Vite build here. Mounting this last
+# leaves all /api routes above available while allowing the app and API to be
+# deployed behind one public URL.
+if FRONTEND_DIST_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend")

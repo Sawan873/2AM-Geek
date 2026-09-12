@@ -92,6 +92,21 @@ the left panel, then ask a question.
 
 > macOS/Linux users can use `cp .env.example .env` instead of `copy`.
 
+## Deploy
+
+This repository includes a Docker deployment configuration and a
+[`render.yaml`](render.yaml) Blueprint. On Render, create a Blueprint from this
+GitHub repository, set `GEMINI_API_KEY` as a **secret environment variable**,
+and deploy. The application and API are served from the same URL; the health
+check is `/api/health`.
+
+Hosted uploads and the local ChromaDB index are runtime data, not Git-tracked
+files. On an ephemeral/free service they can be cleared during a restart or
+redeploy, so upload the permitted demo corpus at the beginning of a demo. Use a
+persistent disk or managed database before relying on it for long-term private
+study storage. Never put course material with sharing restrictions or an API
+key into the public repository.
+
 ## What is mocked?
 
 **Nothing in the RAG path is mocked.** OCR, query expansion, evidence
