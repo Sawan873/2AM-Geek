@@ -11,8 +11,9 @@ import os
 import io
 import uuid
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from google import genai
 from google.genai import types as genai_types
@@ -142,37 +143,58 @@ def _store_chunks(
 # ---------------------------------------------------------------------------
 # Ingestors
 # ---------------------------------------------------------------------------
+MAX_OCR_WORKERS = 4  # parallel Gemini Vision calls per upload
+
+
+def _process_pdf_page(args: tuple) -> Optional[tuple]:
+    """OCR one PDF page and save its image. Returns (page_number, text, image_path) or None."""
+    page_number, page_image, filename = args
+    try:
+        extracted_text = _extract_text_from_pil_image(page_image)
+    except Exception as e:
+        logger.error(f"Gemini Vision failed on page {page_number}: {e}")
+        return None
+    if not extracted_text:
+        return None
+    img_path = str(STORED_IMAGES_DIR / f"{filename}_page_{page_number}.png")
+    page_image.save(img_path, "PNG")
+    return page_number, extracted_text, img_path
+
+
 def ingest_pdf(file_path: str, filename: str) -> int:
     """
     Ingest a PDF file.
-    Each page is rendered to an image and sent to Gemini Vision for OCR.
+    Pages are rendered then sent to Gemini Vision concurrently for faster OCR.
     Returns the total number of chunks stored.
     """
     collection = get_collection()
     total_chunks = 0
 
     try:
-        pages: List[Image.Image] = convert_from_path(file_path, dpi=200)
+        pages: List[Image.Image] = convert_from_path(file_path, dpi=150)
     except Exception as e:
         logger.error(f"pdf2image failed for {filename}: {e}. Falling back to pdfplumber text extraction.")
         pages = []
 
     if pages:
-        for page_number, page_image in enumerate(pages, start=1):
-            logger.info(f"Processing PDF page {page_number}/{len(pages)} of {filename} via Gemini Vision…")
-            try:
-                extracted_text = _extract_text_from_pil_image(page_image)
-            except Exception as e:
-                logger.error(f"Gemini Vision failed on page {page_number}: {e}")
-                extracted_text = ""
+        logger.info(f"Processing {len(pages)} pages of {filename} with {MAX_OCR_WORKERS} parallel workers…")
+        args_list = [(i + 1, img, filename) for i, img in enumerate(pages)]
 
-            if not extracted_text:
-                continue
+        # Collect results keyed by page number then store in order
+        page_results: Dict[int, tuple] = {}
+        with ThreadPoolExecutor(max_workers=MAX_OCR_WORKERS) as executor:
+            futures = {executor.submit(_process_pdf_page, args): args[0] for args in args_list}
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    page_number, text, img_path = result
+                    page_results[page_number] = (text, img_path)
 
-            page_image.save(str(STORED_IMAGES_DIR / f"{filename}_page_{page_number}.png"), "PNG")
-            chunks = _chunk_text(extracted_text)
-            page_numbers = [page_number] * len(chunks)
-            stored = _store_chunks(chunks, filename, page_numbers, collection, source_type="pdf", image_path=str(STORED_IMAGES_DIR / f"{filename}_page_{page_number}.png"))
+        for page_number in sorted(page_results.keys()):
+            text, img_path = page_results[page_number]
+            chunks = _chunk_text(text)
+            page_nums = [page_number] * len(chunks)
+            stored = _store_chunks(chunks, filename, page_nums, collection, source_type="pdf", image_path=img_path)
             total_chunks += stored
     else:
         # Fallback: use pdfplumber for text-layer PDFs
